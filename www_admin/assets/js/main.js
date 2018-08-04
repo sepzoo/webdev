@@ -213,7 +213,6 @@ jQuery(document).ready(function ($) {
     goAsteInfo: function (page, next, name) {
       console.log("go aste info");
 
-      // trasformiamo la post in get
       $.get("/asta-info/?n=" + name.title, function (data) {
         console.log("dati in arrivo", data);
         AppName.addAstaInfo(data);
