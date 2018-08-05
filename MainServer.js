@@ -108,6 +108,9 @@ var aste = [
   }
 ];
 
+// moduli del db, contiene tutte le funzioni (query ecc)
+var db = require("./dbmodules")
+
 // the session function midleware
 var sessionMidleware = session({
   name: "App-Name", // Sarà il nome del Cookie
