@@ -14,6 +14,34 @@ con.connect(function (err) {
 });
 
 var db = {
+    // QUERY ADMIN
+    checkAdminLogin: function (email, password, callback) {
+        var sql = "SELECT * FROM admin where email='" + email + "' and password='" + password + "'";
+        con.query(sql, function (err, result) {
+            if (err) {
+                console.log("errore", err);
+                return null;
+            }
+            else {
+                callback(result);
+            }
+        });
+    },
+
+    checkUserLogin: function (email, password, callback) {
+        var sql = "SELECT * FROM user where email='" + email + "' and password='" + password + "'";
+        con.query(sql, function (err, result) {
+            if (err) {
+                console.log("errore", err);
+                return null;
+            }
+            else {
+                callback(result);
+            }
+        });
+    },
+
+    // QUERY ASTE
     selectAllAuctions: function () {
         var sql = "SELECT id, name, value, end, winner, status FROM aste";
 

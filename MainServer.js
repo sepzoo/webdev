@@ -19,10 +19,6 @@ var session = require("express-session");
 var mySecret = "random-word";
 
 var users = [];
-var users_nickname = [
-  { username: "pippo@mail.com", password: "123456", level: "A" },
-  { username: "pippo", password: "123456", level: "U" }
-];
 
 var aste = [
   {
@@ -57,51 +53,6 @@ var aste = [
     stato: "attiva",
     utenti: [],
     fine: "11/12/2018",
-    vincitore: "Pippo",
-    rilancio_minimo: 20,
-    valore_attuale: 100
-  },
-  {
-    title: "Asta5",
-    stato: "conclusa",
-    utenti: [],
-    fine: "07/12/2018",
-    vincitore: "Pippo",
-    rilancio_minimo: 20,
-    valore_attuale: 100
-  },
-  {
-    title: "Asta6",
-    stato: "attiva",
-    utenti: [],
-    fine: "02/05/2018",
-    vincitore: "Pippo",
-    rilancio_minimo: 20,
-    valore_attuale: 100
-  },
-  {
-    title: "Asta7",
-    stato: "conclusa",
-    utenti: [],
-    fine: "01/08/2018",
-    vincitore: "Pippo",
-    rilancio_minimo: 20,
-    valore_attuale: 100
-  },
-  {
-    title: "Asta8",
-    stato: "attiva",
-    utenti: [],
-    fine: "03/12/2018",
-    vincitore: "Pippo",
-    rilancio_minimo: 20,
-    valore_attuale: 100
-  },
-  {
-    title: "Asta9",
-    stato: "attiva",
-    utenti: [],
-    fine: "15/01/2019",
     vincitore: "Pippo",
     rilancio_minimo: 20,
     valore_attuale: 100
@@ -158,52 +109,45 @@ var checkLoginInput = function (req, res, next) {
 };
 
 var checkLoginDb = function (req, res, next) {
-  /* Controlliamo se l'username è già presente in un eventuale DataBase*/
-  console.log(req.body.nickname);
+  /* Controlliamo se l'username è già presente nel DataBase*/
 
-  var user = {};
-  users_nickname.forEach(function (snap) {
-    if (snap.username == req.body.nickname) {
-      console.log("utente trovato");
-      user = snap;
-      return;
-    }
-  });
+  var user;
 
-  if (!user) {
-    console.log("Utente non registrato.");
-    // Inviare dati per farsi registrare.
-    res.send({
-      notRegistered: true,
-      message: "Utente non registrato. Registrati!"
-    });
-    console.log("Utente non in DB ", users_nickname);
-  } else {
-    console.log("Utente registrato", user);
+  db.checkAdminLogin(req.body.nickname, req.body.password, function (element) {
+    if (element) user = element[0];
+    console.log('utente', user);
 
-    //se login riesce
-    req.session.user = {
-      level: user.level,
-      nickname: req.body.nickname,
-      token: jwt.sign({ nickname: req.body.nickname, ts: Date.now() }, mySecret)
-    };
-
-    console.log("checkLoginRespond: Creazione Sessione");
-    // Salviamo la sessione
-    req.session.save(function (err) {
-      if (err) console.error(err);
-
-      console.log("checkLoginRespond: Salvataggio Sessione Avvenuto.");
-      let data = {
-        result: true,
-        token: req.session.user.token,
-        level: req.session.user.level
+    if (!user) {
+      console.log("User non in DB");
+      // Inviare dati per farsi registrare.
+      res.send({
+        notRegistered: true,
+        message: "Utente non registrato. Registrati!"
+      });
+    } else {
+      //se login riesce
+      req.session.user = {
+        level: 'A',//'user.level',
+        nickname: req.body.nickname,
+        token: jwt.sign({ nickname: req.body.nickname, ts: Date.now() }, mySecret)
       };
-      res.send(data);
-      next();
-    });
-  }
 
+      console.log("checkLoginRespond: Creazione Sessione");
+      // Salviamo la sessione
+      req.session.save(function (err) {
+        if (err) console.error(err);
+
+        console.log("checkLoginRespond: Salvataggio Sessione Avvenuto.");
+        let data = {
+          result: true,
+          token: req.session.user.token,
+          level: req.session.user.level
+        };
+        res.send(data);
+        next();
+      });
+    }
+  })
   // if (users_nickname.username.indexOf(req.body.nickname) == -1) {
   //   console.log("Utente non registrato.");
   //   // Inviare dati per farsi registrare.
