@@ -10,11 +10,15 @@ var app = express();
 var serverWeb = http.createServer(app);
 var socketIO = require("socket.io");
 var websocketServer = socketIO(serverWeb);
+var ss = require('socket.io-stream');
 //  Auth token
 var jwt = require("jsonwebtoken");
 var socketJWT = require("socketio-jwt");
 //  Sessione
 var session = require("express-session");
+// per lo streaming
+// var lib = require("webcamstreaming-js");
+// var lib = new lib(app, http);
 
 var mySecret = "random-word";
 
@@ -92,7 +96,10 @@ var checkUser = function (req, res, next) {
     }
   } else next();
 };
-app.use("/", express.static("www"));
+
+app.use("/", express.static("www_user"));
+
+app.get("/login", function (req, res) { res.sendFile(__dirname + "/www/login.html") })
 // app.get("/", function(req, res) {
 //   if (req.session.user) {
 //     res.send("Già Loggato");
@@ -109,10 +116,12 @@ var checkLoginInput = function (req, res, next) {
 };
 
 var checkLoginDb = function (req, res, next) {
-  /* Controlliamo se l'username è già presente nel DataBase*/
+  /* Controlliamo se l'username è già presente nel DataBase tabella user
+    unica tabella utenti
+  */
 
   var user;
-
+  //db check login
   db.checkAdminLogin(req.body.nickname, req.body.password, function (element) {
     if (element) user = element[0];
     console.log('utente', user);
@@ -125,6 +134,7 @@ var checkLoginDb = function (req, res, next) {
         message: "Utente non registrato. Registrati!"
       });
     } else {
+      //checkadmin controlliamo sul db se è un admin
       //se login riesce
       req.session.user = {
         level: 'A',//'user.level',
@@ -168,12 +178,14 @@ var checkLoginDb = function (req, res, next) {
 //   } else app.use("/user", express.static("www_user"));
 // };
 var checkLoginAdmin = function (req, res, next) {
-  if (req.session.user.level == "A") {
+  if (req.session.user && req.session.user.level && req.session.user.level == "A") {
     next();
   } else {
-    res.send("Accedi come Utente");
+    res.redirect("/login")
+    //res.send("Accedi come Utente");
   }
 };
+
 app.use("/admin", checkLoginAdmin, express.static("www_admin"));
 
 var checkLoginUser = function (req, res, next) {
@@ -225,6 +237,10 @@ var getAsteTable = function (req, res) {
   }, 1000);
 };
 
+// app.get('/stream', function (req, res) {
+//   lib.sendFile(__dirname + "/www_admin/test.html", res);
+// })
+
 var cercaAsta = function (req, res) {
   var obj = findAsta(req.query.n);
   console.log("cercaAsta", req.query.n);
@@ -237,6 +253,10 @@ var cercaAsta = function (req, res) {
 };
 
 app.post("/login", checkLoginInput, checkLoginDb);
+
+app.post("/stream", function (req, res) {
+  if (req.body.data) console.log("qualcosa è arrivata")
+})
 
 //app.get("/asta-info", cercaAsta);
 
@@ -316,25 +336,39 @@ websocketServer.on("authenticated", function (socketC) {
     console.log(currentAsta);
     if (currentAsta.stato == "attiva") {
       var newValue;
+      var rilancio = parseInt(data.message);
+      if (rilancio >= currentAsta.rilancio_minimo) {
+        newValue = currentAsta.valore_attuale + parseInt(data.message);
+        currentAsta.valore_attuale = newValue;
 
-      newValue = currentAsta.valore_attuale + parseInt(data.message);
-      currentAsta.valore_attuale = newValue;
+        newData = {
+          name: data.name,
+          message: data.message,
+          time: data.time,
+          valoreAttuale: newValue
+        };
+        websocketServer
+          .in(socketC.request.session.user.room)
+          .emit("messageReceived", newData);
+      }
+      else {
+        newData = {
+          name: "message from server",
+          message: "rilancio non accettato"
+        };
 
-      newData = {
-        name: data.name,
-        message: data.message,
-        time: data.time,
-        valoreAttuale: newValue
-      };
-      websocketServer
-        .in(socketC.request.session.user.room)
-        .emit("messageReceived", newData);
+        websocketServer
+          .in(socketC.request.session.user.room)
+          .emit("server response", newData);
+      }
     }
   });
 
   socketC.on("closeAuction", function () {
     var currentAsta = findAsta(socketC.request.session.user.room);
     currentAsta.stato = "conclusa";
+
+    //salva sul db i dati dell'asta
 
     websocketServer
       .in(socketC.request.session.user.room)

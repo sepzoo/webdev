@@ -45,6 +45,15 @@ jQuery(document).ready(function ($) {
     AppName.changePage("dashboard", AppName.goDashboard, AppName.stopLoading);
   });
 
+  $("#button-admin").on("click", function () {
+    AppName.changePage("administration", AppName.goAdministration, AppName.stopLoading);
+  })
+
+  $('#startVideo').on("click", function () {
+    AppName.startVideo()
+  })
+
+
   AppName = {
     aste: [],
     text: "ciao",
@@ -92,6 +101,12 @@ jQuery(document).ready(function ($) {
         pagina_attuale = "aste-table";
         next(page);
       });
+    },
+
+    goAdministration: function (page, next) {
+      console.log("go administration");
+      pagina_attuale = "administration";
+      next(page);
     },
 
     stopLoading: function (page) {
@@ -273,6 +288,18 @@ jQuery(document).ready(function ($) {
             </ul>\
         </section>\
     </aside>';
+      if (snap.stato == "conclusa") {
+        console.log("asta conclusa");
+        $(".chat-container").hide();
+        $("#blocca-asta-container").hide();
+        $("#liveVideo").hide();
+      }
+      else {
+        $(".chat-container").show();
+        $("#liveVideo").show();
+        $(".blocca-asta-container").show();
+      }
+
       $("#card-info-asta").empty();
       $("#card-info-asta").append(element);
     },
@@ -309,6 +336,7 @@ jQuery(document).ready(function ($) {
         $(element).on("click", function () {
           //   $("#aste-table").hide();
           //   $("#aste-info").show();
+          $(".message-container").empty();
           App.socketJoin(snap.title);
           AppName.changePage(
             "aste-info",
@@ -323,7 +351,63 @@ jQuery(document).ready(function ($) {
 
       $.fn.dataTable.moment("dd, MM Do, YYYY");
       $("#bootstrap-data-table").dataTable();
-    }
+    },
+    startVideo: function () {
+      // Grab elements, create settings, etc.
+      // var video = document.getElementById("video");
+      var video = $('#video').get()[0];
+      var canvas = $('#canvas');
+      var ctx = canvas.get()[0].getContext('2d');
+
+      // Get access to the camera!
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Not adding `{ audio: true }` since we only want video now
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then(function (stream) {
+            video.src = window.URL.createObjectURL(stream);
+            video.play();
+
+            var mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.onstart = function (e) {
+              this.chunks = [];
+
+              setTimeout(function () {
+                console.log('prova')
+                mediaRecorder.stop();
+              }, 2000);
+            };
+            mediaRecorder.ondataavailable = function (e) {
+              this.chunks.push(e.data);
+            };
+            mediaRecorder.onstop = function (e) {
+              var blob = new Blob(this.chunks, { 'type': 'video/ogg;' });
+              App.socket.emit('radio', blob);
+              mediaRecorder.start();
+            };
+
+            // Start recording
+            mediaRecorder.start();
+            // Stop recording after 5 seconds and broadcast it to server
+
+
+            // var timer = setInterval(
+            //   function () {
+            //     ctx.drawImage(video, 0, 0, 320, 240);
+            //     var data = canvas.get()[0].toDataURL('image/jpeg', 1.0);
+            //     App.socket.emit('stream', stream);
+            //   }, 250);
+          });
+      }
+      $('#startVideo').hide();
+      // solo immagini
+      // var timer = setInterval(
+      //   function () {
+      //     ctx.drawImage(video, 0, 0, 320, 240);
+      //     var data = canvas.get()[0].toDataURL('image/jpeg', 1.0);
+      //     App.socket.emit('stream', canvas.get()[0].toDataURL('image/webp'));
+      //   }, 250);
+    },
   };
 
   AppName.init();
